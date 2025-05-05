@@ -1,10 +1,41 @@
+"use client";
 import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArrowRight, Camera, Globe, HandMetal, Coins } from "lucide-react";
+import { useRef, useState } from "react";
 
 export default function LandingPage() {
+  const fileInputRef = useRef(null);
+  const [prediction, setPrediction] = useState("");
+
+  const handleUploadClick = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+  const handleFileChange = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      const formData = new FormData();
+      formData.append("image", file);
+
+      fetch("http://localhost:5000/predict", {
+        method: "POST",
+        body: formData,
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          setPrediction(data.result || "No result");
+          console.log("Prediction result:", data);
+        })
+        .catch((error) => {
+          console.error("Prediction error:", error);
+        });
+    }
+  };
+
   return (
     <div className="flex flex-col min-h-screen">
       <header className="p-4 bg-primary text-primary-foreground">
@@ -118,10 +149,25 @@ export default function LandingPage() {
             <p className="text-xl mb-8">
               Start breaking communication barriers today
             </p>
-            <Button variant="secondary" size="lg">
-              Try It Now
-              <Camera className="ml-2" />
-            </Button>
+            <>
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                className="hidden"
+                accept="image/*"
+              />
+              <Button variant="secondary" size="lg" onClick={handleUploadClick}>
+                Try It Now
+                <Camera className="ml-2" />
+              </Button>
+              {prediction && (
+                <div className="mt-6 text-white text-lg font-semibold">
+                  Prediction:{" "}
+                  <span className="text-yellow-300">{prediction}</span>
+                </div>
+              )}
+            </>
           </div>
         </section>
       </main>
@@ -154,6 +200,7 @@ function Step({ number, description }) {
         {number}
       </div>
       <p>{description}</p>
-    </div>
-  );
+         
+    </div>
+  );
 }
