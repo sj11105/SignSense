@@ -3,36 +3,63 @@ import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { ArrowRight, Camera, Globe, HandMetal, Coins } from "lucide-react";
+import {
+  ArrowRight,
+  Camera,
+  Globe,
+  HandMetal,
+  Coins,
+  Upload,
+  Loader2,
+} from "lucide-react";
 import { useRef, useState } from "react";
 
 export default function LandingPage() {
   const fileInputRef = useRef(null);
   const [prediction, setPrediction] = useState("");
+  const [uploadedImage, setUploadedImage] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const handleUploadClick = () => {
     if (fileInputRef.current) {
       fileInputRef.current.click();
     }
   };
-  const handleFileChange = (event) => {
+
+  const handleFileChange = async (event) => {
     const file = event.target.files[0];
     if (file) {
-      const formData = new FormData();
-      formData.append("image", file);
+      try {
+        setIsLoading(true);
+        setError("");
+        setPrediction("");
 
-      fetch("http://localhost:5000/predict", {
-        method: "POST",
-        body: formData,
-      })
-        .then((res) => res.json())
-        .then((data) => {
-          setPrediction(data.result || "No result");
-          console.log("Prediction result:", data);
-        })
-        .catch((error) => {
-          console.error("Prediction error:", error);
+        // Create URL for preview
+        const imageUrl = URL.createObjectURL(file);
+        setUploadedImage(imageUrl);
+
+        const formData = new FormData();
+        formData.append("image", file);
+
+        const response = await fetch("http://localhost:5000/predict", {
+          method: "POST",
+          body: formData,
         });
+
+        if (!response.ok) {
+          throw new Error(`Server responded with status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        setPrediction(data.result || "No result");
+        console.log("Prediction result:", data);
+      } catch (error) {
+        console.error("Prediction error:", error);
+        setError("Failed to process image. Please try again.");
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -63,7 +90,7 @@ export default function LandingPage() {
         </div>
       </header>
 
-      <main className="flex-grow ">
+      <main className="flex-grow">
         {/* Hero Section */}
         <section className="bg-gradient-to-r from-purple-400 to-blue-300 text-white py-20">
           <div className="container mx-auto text-center">
@@ -73,7 +100,7 @@ export default function LandingPage() {
             <p className="text-xl mb-8">
               Translate sign language to text and identify currencies instantly
             </p>
-            <Button size="lg">
+            <Button size="lg" onClick={handleUploadClick}>
               Get Started
               <ArrowRight className="ml-2" />
             </Button>
@@ -140,7 +167,7 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* Call to Action Section */}
+        {/* Try It Now Section */}
         <section className="bg-primary text-primary-foreground py-20">
           <div className="container mx-auto text-center">
             <h2 className="text-3xl font-bold mb-4">
@@ -149,7 +176,8 @@ export default function LandingPage() {
             <p className="text-xl mb-8">
               Start breaking communication barriers today
             </p>
-            <>
+
+            <div className="max-w-md mx-auto">
               <input
                 type="file"
                 ref={fileInputRef}
@@ -157,17 +185,68 @@ export default function LandingPage() {
                 className="hidden"
                 accept="image/*"
               />
-              <Button variant="secondary" size="lg" onClick={handleUploadClick}>
-                Try It Now
-                <Camera className="ml-2" />
+              <Button
+                variant="secondary"
+                size="lg"
+                onClick={handleUploadClick}
+                disabled={isLoading}
+                className="w-full"
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    Upload Image
+                    <Upload className="ml-2" />
+                  </>
+                )}
               </Button>
-              {prediction && (
-                <div className="mt-6 text-white text-lg font-semibold">
-                  Prediction:{" "}
-                  <span className="text-yellow-300">{prediction}</span>
-                </div>
+
+              {/* Preview and Result Area */}
+              {(uploadedImage || prediction || error) && (
+                <Card className="mt-6 overflow-hidden bg-white">
+                  <CardContent className="p-6">
+                    {uploadedImage && (
+                      <div className="mb-4">
+                        <h3 className="text-lg font-semibold text-gray-700 mb-2">
+                          Uploaded Image
+                        </h3>
+                        <div className="relative h-48 w-full">
+                          <Image
+                            src={uploadedImage}
+                            alt="Uploaded image"
+                            fill
+                            className="object-contain rounded-md"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {error && (
+                      <div className="p-3 bg-red-100 border border-red-300 text-red-700 rounded-md">
+                        {error}
+                      </div>
+                    )}
+
+                    {prediction && (
+                      <div className="mt-4">
+                        <h3 className="text-lg font-semibold text-gray-700 mb-2">
+                          Prediction Result
+                        </h3>
+                        <div className="p-4 bg-blue-50 border border-blue-200 rounded-md">
+                          <p className="text-blue-800 font-medium text-xl">
+                            {prediction}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
               )}
-            </>
+            </div>
           </div>
         </section>
       </main>
@@ -200,7 +279,6 @@ function Step({ number, description }) {
         {number}
       </div>
       <p>{description}</p>
-         
     </div>
   );
 }
